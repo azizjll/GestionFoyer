@@ -30,7 +30,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String authorizationHeader = request.getHeader("Authorization");
 
-        // Si l'en-tête Authorization est absent, ne rien faire (surtout pour l'enregistrement de l'utilisateur)
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -38,24 +37,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authorizationHeader.substring(7); // Supprimer "Bearer "
         try {
-            // Extraire l'email (ou tout autre champ de subject) du token
             String email = jwtUtil.extractEmail(token);
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Charger les détails de l'utilisateur
                 UserDetails userDetails = authService.loadUserByUsername(email);
-                // Valider le token
                 if (jwtUtil.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authenticationToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                } else {
+                    System.out.println("Token invalide");
                 }
             }
         } catch (Exception e) {
             System.err.println("Erreur dans le traitement du JWT : " + e.getMessage());
         }
 
-        // Continuer la chaîne de filtres
         filterChain.doFilter(request, response);
     }
-
 }

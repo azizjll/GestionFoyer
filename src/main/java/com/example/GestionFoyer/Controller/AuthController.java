@@ -16,10 +16,12 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
 
+
     public AuthController(AuthService authService, JwtUtil jwtUtil, PasswordEncoder passwordEncoder) {
         this.authService = authService;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
+
     }
 
     @PostMapping("/login")
@@ -50,6 +52,10 @@ public class AuthController {
 
         return ResponseEntity.status(401).body("Invalid credentials");
     }
+
+
+
+
 
 
 

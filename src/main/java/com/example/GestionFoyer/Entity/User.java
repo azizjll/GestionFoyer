@@ -45,13 +45,18 @@ public class User implements UserDetails {
 
     private boolean isVerified = false;
 
+
+
     // Implémentation des méthodes de l'interface UserDetails
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Retourne les rôles de l'utilisateur sous forme de GrantedAuthority
-        return List.of(() -> role.name()); // Par exemple, le rôle peut être "USER", "ADMIN"
+        if (role == null) {
+            return List.of(() -> "ROLE_USER");  // Valeur par défaut si role est null
+        }
+        return List.of(() -> role.name());
     }
+
 
     @Override
     public String getPassword() {
