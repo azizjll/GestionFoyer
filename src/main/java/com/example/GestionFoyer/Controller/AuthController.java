@@ -3,6 +3,7 @@ package com.example.GestionFoyer.Controller;
 import com.example.GestionFoyer.Entity.User;
 import com.example.GestionFoyer.Service.AuthService;
 import com.example.GestionFoyer.Util.JwtUtil;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -25,36 +26,70 @@ public class AuthController {
     public ResponseEntity<String> login(@RequestBody User user) {
         // Récupérer l'utilisateur par email
         User existingUser = authService.getUserByEmail(user.getEmail());
-        if (existingUser != null && passwordEncoder.matches(user.getPassword(), existingUser.getPassword())) {
+
+        if (existingUser == null) {
+            return ResponseEntity.status(401).body("Invalid credentials");
+        }
+
+        // Vérifier si l'utilisateur a confirmé son email
+        if (!existingUser.isVerified()) {
+            return ResponseEntity.status(403).body("Email not verified. Please check your inbox to verify your email.");
+        }
+
+        // Vérifier le mot de passe
+        if (passwordEncoder.matches(user.getPassword(), existingUser.getPassword())) {
             // Générer le token JWT
-            String token = jwtUtil.generateToken(existingUser);
+            String token = jwtUtil.generateToken(existingUser.getEmail());
+
+            // Enregistrer le token dans l'utilisateur
+            existingUser.setToken(token);
+            authService.updateUser(existingUser);
+
             return ResponseEntity.ok(token);
         }
+
         return ResponseEntity.status(401).body("Invalid credentials");
     }
 
 
+
+
+
+
+
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody User user) {
-        // Vérifier si l'utilisateur existe déjà
-        if (authService.getUserByEmail(user.getEmail()) != null) {
-            return ResponseEntity.status(400).body("Email already taken");
+        try {
+            authService.register(user);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Utilisateur enregistré avec succès.");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Erreur lors de l'enregistrement.");
         }
-
-        // Vérifier que le mot de passe n'est pas nul ou vide
-        if (user.getPassword() == null || user.getPassword().isEmpty()) {
-            return ResponseEntity.status(400).body("Password cannot be null or empty");
-        }
-
-        // Encoder le mot de passe
-        String encodedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
-
-        // Enregistrer l'utilisateur dans la base de données
-        authService.saveUser(user);
-
-        return ResponseEntity.status(201).body("User registered successfully");
     }
 
+
+
+    @GetMapping("/verify")
+    public ResponseEntity<String> verifyEmail(@RequestParam String token) {
+        try {
+            // Extraire l'email depuis le token
+            String email = jwtUtil.extractEmail(token);
+
+            // Récupérer l'utilisateur par email
+            User user = authService.getUserByEmail(email);
+
+            if (user == null) {
+                return ResponseEntity.status(404).body("Utilisateur non trouvé.");
+            }
+
+            // Marquer l'utilisateur comme vérifié
+            user.setVerified(true);
+            authService.updateUser(user);
+
+            return ResponseEntity.ok("Votre email a été vérifié avec succès !");
+        } catch (Exception e) {
+            return ResponseEntity.status(400).body("Token invalide ou expiré.");
+        }
+    }
 
 }
